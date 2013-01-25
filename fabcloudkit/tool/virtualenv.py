@@ -4,14 +4,12 @@ from __future__ import absolute_import
 import posixpath as path
 
 # pypi
-from fabric.decorators import task
 from fabric.operations import run, sudo
 
 # package
 from fabcloudkit.internal import *
 
 
-@task
 def tool_check():
     start_msg('----- Checking for "virtualenv" installation:')
     result = run('which virtualenv')
@@ -22,7 +20,6 @@ def tool_check():
     succeed_msg('"virtualenv" is installed ({0}).'.format(result))
     return True
 
-@task
 def tool_install():
     start_msg('----- Install "virtualenv" via "pip".')
     result = sudo('pip install -q virtualenv')
@@ -34,12 +31,10 @@ def tool_install():
         raise HaltError('Confusion: just installed "virtualenv" but its not there.')
     succeed_msg('"virtualenv" is installed ({0}).'.format(result))
 
-@task
 def tool_verify():
     if not tool_check():
         tool_install()
 
-@task
 def ensure(dir_name, interpreter=None, force_create=False):
     """
     Creates a new virtualenv using the specified directory name. The parameter dir_name can be either a

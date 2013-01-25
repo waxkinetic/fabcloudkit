@@ -36,7 +36,6 @@ from __future__ import absolute_import
 import posixpath as path
 
 # pypi
-from fabric.decorators import task
 from fabric.operations import run, sudo
 
 # package
@@ -49,11 +48,9 @@ __all__ = ['tool_check', 'tool_install', 'tool_verify',
            'write_server_config', 'reload_config']
 
 
-@task
 def tool_check():
     return check_internal('nginx')
 
-@task
 def tool_install():
     # install Nginx using the package manager.
     install_internal('nginx')
@@ -79,12 +76,10 @@ def tool_install():
 
     succeed_msg('Successfully installed and configured "Nginx".')
 
-@task
 def tool_verify():
     if not tool_check():
         tool_install()
 
-@task
 def write_server_config(name, server_names, proxy_pass, static_locations='', log_root=None, listen=80):
     """
     Writes an Nginx server configuration file.
@@ -113,7 +108,6 @@ def write_server_config(name, server_names, proxy_pass, static_locations='', log
 
     succeed_msg('Wrote conf file for "{0}".'.format(name))
 
-@task
 def delete_server_config(name):
     start_msg('----- Deleting server configuration for "{0}":'.format(name))
 
@@ -125,7 +119,6 @@ def delete_server_config(name):
     else:
         succeed_msg('Successfully deleted configuration "{0}".'.format(config_name))
 
-@task
 def reload_config():
     start_msg('----- Telling "Nginx" to reload configuration:')
     result = sudo('/etc/init.d/nginx reload')

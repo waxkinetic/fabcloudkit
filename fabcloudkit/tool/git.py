@@ -5,7 +5,6 @@ import uuid
 
 # pypi
 from fabric.context_managers import cd
-from fabric.decorators import task
 from fabric.operations import put, run, sudo
 
 # package
@@ -16,7 +15,6 @@ __all__ = ['clone', 'pull', 'head_commit', 'install_key_file', 'append_ssh_confi
            'clone_all', 'pull_all']
 
 
-@task
 def clone(url, name=None, parent_dir=None, repo_name=''):
     start_msg('----- Cloning git repo: "{url}"'.format(**locals()))
     if not name:
@@ -37,7 +35,6 @@ def clone(url, name=None, parent_dir=None, repo_name=''):
             raise HaltError('Failed to clone repo: "{url}"'.format(**locals()))
     succeed_msg('Clone successful.')
 
-@task
 def pull(repo_name=None, repo_dir=None):
     if not repo_dir:
         if not repo_name:
@@ -51,7 +48,6 @@ def pull(repo_name=None, repo_dir=None):
             raise HaltError('Error during "git pull" ({0})'.format(result))
     succeed_msg('Pull successful ({0}).'.format(result))
 
-@task
 def head_commit(repo_name=None, repo_dir=None):
     if not repo_dir:
         if not repo_name:
@@ -68,7 +64,6 @@ def head_commit(repo_name=None, repo_dir=None):
     succeed_msg('Got head commit ID ({0}).'.format(result))
     return result
 
-@task
 def install_key_file(local_key_file, target_name=None):
     """
     Copies the specified private key file to the host and updates the ssh config for github.com.
@@ -105,7 +100,6 @@ def install_key_file(local_key_file, target_name=None):
         'github.com',
         ['StrictHostKeyChecking no', 'IdentityFile {0}'.format(target_name)])
 
-@task
 def append_ssh_config(host, opts):
     """
     Appends a "Host" entry to the ssh config file, and adds the specified options.
@@ -129,7 +123,6 @@ def append_ssh_config(host, opts):
         raise HaltError('Unable to set permissions on file "~/.ssh.config".')
     succeed_msg('Success.')
 
-@task
 def clone_all():
     """
     Clones all repos defined in the current context.
@@ -139,7 +132,6 @@ def clone_all():
     for repo in ctx().repos():
         clone(repo['url'], repo_name=repo['dir'])
 
-@task
 def pull_all():
     """
     Performs a "pull" for all repos defined in the current context.

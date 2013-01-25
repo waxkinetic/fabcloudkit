@@ -7,7 +7,6 @@ from StringIO import StringIO
 
 # pypi
 from fabric.context_managers import cd, prefix
-from fabric.decorators import task
 from fabric.operations import get, run
 
 # package

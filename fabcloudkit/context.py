@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 # standard
-import posixpath as path
+import os
+import posixpath
 
 # pypi
 import boto.ec2
@@ -52,16 +53,16 @@ class Context(dotdict):
         raise RuntimeError('No instance in role "{0}" is available.'.format(role_name))
 
     def builds_root(self):
-        return path.join(cfg().deploy_root, self.name, cfg().builds_dir)
+        return posixpath.join(cfg().deploy_root, self.name, cfg().builds_dir)
 
     def build_path(self, file_or_dir_name):
-        return path.join(self.builds_root(), file_or_dir_name)
+        return posixpath.join(self.builds_root(), file_or_dir_name)
 
     def repos_root(self):
-        return path.join(cfg().deploy_root, self.name, cfg().repos_dir)
+        return posixpath.join(cfg().deploy_root, self.name, cfg().repos_dir)
 
     def repo_path(self, file_or_dir_name):
-        return path.join(self.repos_root(), file_or_dir_name)
+        return posixpath.join(self.repos_root(), file_or_dir_name)
 
     def get_key(self, name):
         key = self.get('keys', {}).get(name, None)
@@ -77,10 +78,11 @@ class Context(dotdict):
             # note: calling safe_load() disables the "!env" extension tag.
             self._set_dct(yaml.load(f))
 
-            # load roles.
-            del self._roles[:]
-            for file_name in self.get('roles', []):
-                self._roles.append(Role(file_name))
+        # load roles.
+        dir = os.path.dirname(file_path)
+        del self._roles[:]
+        for file_name in self.get('roles', []):
+            self._roles.append(Role(os.path.join(dir, file_name)))
 
     def get_role(self, name):
         for role in self._roles:

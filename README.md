@@ -1,7 +1,9 @@
-# fabcloudkit
+fabcloudkit
+===========
 cloud machine management: provision, build, and deploy (experimental)
 
-## What is it?
+What is it?
+-----------
 
 (This readme is a work in progress.)
 
@@ -16,7 +18,8 @@ The initial motivation for fabcloudkit was mostly cost and convenience: not want
 something like Chef or Puppet for managing small-ish projects, and at the same time wanting to
 automate machine provisioning, build and deployment of Python-based projects.
 
-## What does it do?
+What does it do?
+----------------
 
 The fabcloudkit makes it relatively easy to
 
@@ -69,13 +72,11 @@ where it was built, or it can be copied to other machines and activated there.
 
 So, fabcloudkit does a reasonable amount of useful stuff. There's also a lot it doesn't do right now.
 
-## A simple example
+A simple example
+----------------
 
-In this example assume there's just one type of machine, e.g., for a small and simple site that only
-needs web servers, or for a really small project that really only needs a single machine.
-
-The example assumes all of your code is in a git repository, and its all pure-Python (although
-pure-Python code isn't a requirement of fabcloudkit).
+In this example there'll be two roles: a 'builder' role that just builds code, and a 'web' role
+where the code is deployed. It assumes code is stored in a git repository.
 
 Prerequisites are:
 
@@ -85,8 +86,168 @@ Prerequisites are:
 * You've created an appropriate security group, and
 * You know the SSH (not HTTPS) URL for your git repository(s).
 
-I'll get to what to do with this stuff in a minute, but assuming you've created a "context" configuration
-file and one "role" configuration file for the 'builder' role, here are a few things you could do:
+With this stuff in hand, you'll need to create the following:
+
+1. A "context" configuration file,
+2. A "builder" role configuration file, and
+3. A "web" role configuration file.
+
+There are examples, with comments, of these files in the "examples" folder of the source.
+
+### The context-configuration file
+
+```
+name: example
+key_filename: ~/.ec2/keypair.pem
+aws_key: !env AWS_ACCESS_KEY_ID
+aws_secret: !env AWS_SECRET_ACCESS_KEY
+
+keys:
+  git:
+    local_file: /Users/<USER>/.ssh/id_rsa_example_machine_user
+    private: True
+
+repos:
+  fabcloudkit_example_repo:
+    url: git@github.com:waxkinetic/fabcloudkit_example_repo.git
+
+roles:
+  - role_builder.yaml
+  - role_web.yaml
+```
+
+Most of this stuff is pretty straightforward, but a few notes are in order.
+
+Under "keys", the "git" key has to be specified in order to use "install_key_file" in the
+role-configuration files. The git key is a private key for a git user account that has access
+to your repo. If you're using git organizations, that user can have readonly access.
+
+The "repos" section lists the git repositories that you'll be using.
+
+The "roles" section points to the role-configuration files.
+
+### The "builder" role-configuration file
+
+```
+name: builder
+description: Build machine
+user: ec2-user
+aws:
+  ami_id: ami-1624987f
+  key_name: main
+  security_groups: [default]
+  instance_type: t1.micro
+
+provision:
+  tools: [__update_packages__, reboot,
+          easy_install, python2.7, pip, virtualenv,
+          git, gcc, python27-devel, mysql-devel, reboot]
+
+  git:
+    install_key_file: True
+    clone: __all__
+
+  allow_access:
+    roles: web
+
+build:
+  plan:
+    repos: __all__
+    interpreter: python2.7
+    tarball: True
+```
+
+A lot of this is straightforward too, but a few more notes.
+
+The "user" is the account used for SSH login to the instance, and can be different for different
+instance types (e.g., it's "ec2-user" for the Amazon Linux AMI, and "ubuntu" for the Ubuntu AMI).
+
+The "aws" section gives defaults used for creating instances. These values can be overridden in
+the call to create_instance().
+
+The "provision" section describes a one-time preparation of the instance. The "tools" section
+lists tools/packags to be installed. The "git" section says to install a private-key file for
+access to git repositories, and to clone all repositories listed in the context-configuration file
+(in this case, only the "fabcloudkit_example_repo"). The "allow_access" section says that instances
+provisioned in the "web" role can have access to instances provisioned in the "builder" role.
+
+The "build" section is a build plan. It says to pull all repos in the context-configuration, use
+the Python2.7 interpreter in the build's virtualenv, and create a tarball when it's all finished.
+Creating the tarball is important as we'll see in the "web" role-configuration file.
+
+There aren't a ton of tools supported at the moment, but they're easy to add if you know the
+yum and apt-get commands. Take a look at the fabcloudkit.yaml file in the source for this, and
+send over any additions you make.
+
+### The "web" role-configuration file
+
+```
+name: web
+description: web server
+user: ec2-user
+aws:
+  ami_id: ami-1624987f
+  key_name: main
+  security_groups: [default]
+  instance_type: t1.micro
+
+provision:
+  create_key_pair: True
+
+  tools: [__update_packages__, reboot,
+          easy_install, python2.7, pip, virtualenv,
+          supervisord, nginx, reboot]
+
+  request_access:
+    roles: builder
+
+build:
+  copy_from:
+    role: builder
+
+  post_build:
+    - command: mkdir -p -m 0777 /some/important/dir
+      sudo: True
+
+activate:
+  http_test_path: /
+
+  gunicorn:
+    script: gunicorn
+    app_module: app:app
+    options:
+      debug: True
+      log-level: DEBUG
+
+  nginx:
+    listen: 80
+    #server_names: None
+
+    static:
+      - url: /static/
+        local: app/static/
+```
+
+There's some of the same stuff here as in the "builder" role, but some differences too.
+
+In the "provision" section "create_key_pair" causes a unique key-pair to be created for
+the "web" instance, and "request_access" causes the public part of that key-pair to be shipped over
+to the instance in the "builder" role.
+
+In the "build" section, the build is copied from the instance in the "buider" role, and
+the "post_build" commands are executed in the active build virtualenv after the build is
+copied over and un-tarred.
+
+The "activate" section describes how to activate the build. Activation means starting up
+gunicorn to server the site on a port on the local machine, using supervisor to monitor the
+gunicorn process, and using Nginx as the public-facing HTTP server but passing requests on
+to the gunicorn process. The "static" section lets you use Nginx to serve static pages of
+the site.
+
+Again, there are fully-commmented examples of these files in the "examples" folder of the source
+so they're a good resource to get a better understanding of the whole picture.
+
+### Putting it all together
 
 ```
 >>> from fabcloudkit import Config, Context
@@ -126,7 +287,12 @@ Build completed successfully for role "builder".
 >>>
 ```
 
-## What's next?
+A note on git repositories
+--------------------------
+
+
+What's next?
+------------
 
 In no particular order, here are some ideas on the burner:
 
@@ -134,15 +300,17 @@ In no particular order, here are some ideas on the burner:
 - Docs
 - Support pip installations from a local cache instead of downloading
 - Investigate using with Fabric's multi-processing capabilities
-- Support non-Python people
-- Support other WSGI servers
+- Support non-Python people?
+- Support other WSGI servers?
 
-## Caveats, acknowledgements, disclaimers and other stuff
+
+Caveats, acknowledgements, disclaimers and other stuff
+------------------------------------------------------
 
 I really don't know anything about Django, so while the fabcloudkit might work with Django I
-haven't tested it.
+haven't tested it. You can, however, tell it to run "gunicorn_django" instead of "gunicorn".
 
-The code has been tested mostly on the Amazon Linux AMI, but it's also been run on the Ubuntu
+The code has been tested mostly on the Amazon Linux AMI. It's also been run on the Ubuntu
 AMI successfully several times. Won't work on Windows AMIs.
 
 This is really my first experience setting up and using supervisor, Nginx, and gunicorn, so
@@ -156,5 +324,5 @@ Only supports gunicorn HTTP-based binding (no socket-based binding).
 
 Comments and contributions welcome.
 
-Some ideas and code (heavily modified) taken from Brent Tubb's silk-deployment project at:
-http://pypi.python.org/pypi/silk-deployment/0.3.14
+Some ideas and code (heavily modified) taken from [Brent Tubb's silk-deployment
+project](http://pypi.python.org/pypi/silk-deployment/0.3.14).

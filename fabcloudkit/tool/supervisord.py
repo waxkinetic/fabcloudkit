@@ -42,7 +42,6 @@ import posixpath as path
 import time
 
 # pypi
-from fabric.decorators import task
 from fabric.operations import run, sudo
 
 # package
@@ -55,7 +54,6 @@ __all__ = ['tool_check', 'tool_install', 'tool_verify',
            'start', 'stop_and_remove', 'get_status', 'wait_until_running']
 
 
-@task
 def tool_check():
     """
     Detects if supervisor is installed on the remote machine.
@@ -71,7 +69,6 @@ def tool_check():
     succeed_msg('"supervisord" is installed ({0}).'.format(result))
     return True
 
-@task
 def tool_install():
     """
     Installs and configures supervisor on the remote machine.
@@ -132,7 +129,6 @@ def tool_install():
 
     succeed_msg('"supervisord" is installed ({0}).'.format(result))
 
-@task
 def tool_verify():
     """
     Runs tool_check(), and if it returns False runs tool_install().
@@ -142,7 +138,6 @@ def tool_verify():
     if not tool_check():
         tool_install()
 
-@task
 def write_program_config(name, cmd, dir=None, log_root=None, env=None):
     """
     Writes a supervisor [program] entry to a "conf" file.
@@ -188,7 +183,6 @@ def write_program_config(name, cmd, dir=None, log_root=None, env=None):
     put_string(entry, dest, use_sudo=True)
     succeed_msg('Wrote conf file for "{0}".'.format(name))
 
-@task
 def delete_program_config(name):
     """
     Deletes a program entry previously written by write_program_config().
@@ -203,7 +197,6 @@ def delete_program_config(name):
         raise HaltError('Unable to remove entry.')
     succeed_msg('Removed successfully.')
 
-@task
 def reload_config():
     """
     Tells supervisor to reload it's configuration. This method is normally used after writing
@@ -218,7 +211,6 @@ def reload_config():
         raise HaltError('"supervisorctl reread" failed ({1}).'.format(result))
     succeed_msg('Successfully reloaded.')
 
-@task
 def start(name):
     """
     Starts monitoring the specified program.
@@ -239,7 +231,6 @@ def start(name):
         raise HaltError('Failed to add "{0}" to supervisor.'.format(name))
     succeed_msg('Monitoring of "{0}" started.'.format(name))
 
-@task
 def stop_and_remove(name):
     """
     Stops monitoring the specified program.
