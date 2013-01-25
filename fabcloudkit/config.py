@@ -1,4 +1,5 @@
 """
+    fabcloudkit
 
 Configuration settings are:
 
@@ -27,6 +28,8 @@ nginx_include_conf:
 tools:
     Contains tool definitions.
 
+    :copyright: (c) 2013 by Rick Bohrer.
+    :license: BSD, see LICENSE for more details.
 """
 from __future__ import absolute_import
 

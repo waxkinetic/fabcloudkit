@@ -1,4 +1,6 @@
 """
+    fabcloudkit
+
 Functions for managing Nginx.
 
 This module provides functions that check for installation, install, and manage an
@@ -29,6 +31,9 @@ installation of, Nginx.
     to write_server_config().
 
 For more information on Nginx check out: http://nginx.org, http://wiki.nginx.org
+
+    :copyright: (c) 2013 by Rick Bohrer.
+    :license: BSD, see LICENSE for more details.
 """
 from __future__ import absolute_import
 

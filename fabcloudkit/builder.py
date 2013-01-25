@@ -1,4 +1,6 @@
 """
+    fabcloudkit
+
 Build plan variables:
 
   repos:
@@ -25,6 +27,9 @@ Build plan variables:
     up in a file next to the build directory. The tarball has the same name as the directory
     except for a ".tar.gz" extension. This file can be copied to other machines using the
     "copy_from" build specification in the role yaml.
+
+    :copyright: (c) 2013 by Rick Bohrer.
+    :license: BSD, see LICENSE for more details.
 """
 from __future__ import absolute_import
 

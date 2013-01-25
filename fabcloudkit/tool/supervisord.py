@@ -1,4 +1,6 @@
 """
+    fabcloudkit
+
 Functions for managing supervisor.
 
 This module provides functions that check for installation, install, and manage an
@@ -34,6 +36,9 @@ The relevant files and directories are:
 
 For more information on supervisor check out: http://supervisord.org/
 Idea and code (heavily modified) for this module taken from Brent Tubb's "silk" project.
+
+    :copyright: (c) 2013 by Rick Bohrer.
+    :license: BSD, see LICENSE for more details.
 """
 from __future__ import absolute_import
 

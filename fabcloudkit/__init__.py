@@ -1,4 +1,12 @@
+"""
+    fabcloudkit
+
+    :copyright: (c) 2013 by Rick Bohrer.
+    :license: BSD, see LICENSE for more details.
+"""
 from __future__ import absolute_import
+
+__version__ = '0.01-dev'
 
 # access to the current Context without having to import the context module.
 def ctx():

@@ -22,7 +22,7 @@ def all_files_under(**kwargs):
 
 setup(
     name='fabcloudkit',
-    version='0.1',
+    version='0.01',
     description='An AWS provisioning, build, and deployment library built on Fabric and Boto.',
     zip_safe=False,
 
