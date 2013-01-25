@@ -20,9 +20,6 @@ def all_files_under(**kwargs):
                 for dirpath, _, filenames in walk(top)))
     return result
 
-# python setup.py sdist --formats=gztar
-# pip install --find-links=file:///Users/Rick/Stuff/fabcloudkit/dist fabcloudkit
-
 setup(
     name='fabcloudkit',
     version='0.1',

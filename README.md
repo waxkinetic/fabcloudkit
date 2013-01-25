@@ -3,6 +3,8 @@ cloud machine management: provision, build, and deploy (experimental)
 
 ## What is it?
 
+(This readme is a work in progress.)
+
 The fabcloudkit is a thin layer over the Fabric remote execution and deployment tool and the boto
 AWS interface library. Its an experimental project for automated provisioning and management of
 machines in the AWS cloud for running Python code.
@@ -32,15 +34,15 @@ something like this:
 /opt/www
     <name>
         builds
-        <build-1>
-        <build-2>
-        ...
-        <build-N>
-    repos
-        <repo-1>
-        <repo-2>
-        ...
-        <repo-N>
+            <build-1>
+            <build-2>
+            ...
+            <build-N>
+        repos
+            <repo-1>
+            <repo-2>
+            ...
+            <repo-N>
 ```
 
 The root (/opt/www) can be customized, and so can the names "builds" and "repos" if you want. The
@@ -69,77 +71,90 @@ So, fabcloudkit does a reasonable amount of useful stuff. There's also a lot it 
 
 ## A simple example
 
-  In this simple example there's just one type of machine, e.g., for a small and simple site that only
-  needs web servers, or for a really small project that really only needs a single machine.
+In this example assume there's just one type of machine, e.g., for a small and simple site that only
+needs web servers, or for a really small project that really only needs a single machine.
 
-  The example assumes all of your code is in a git repository, and its all pure-Python (although
-  pure-Python code is not a requirement of fabcloudkit.
+The example assumes all of your code is in a git repository, and its all pure-Python (although
+pure-Python code isn't a requirement of fabcloudkit).
 
-  Prerequisites are:
+Prerequisites are:
 
-  a) You have an AWS account,
-  b) You know your AWS access key and secret key,
-  c) You've created and setup a key-pair,
-  d) You've created an appropriate security group, and
-  e) You know the SSH (not HTTPS) URL for your git repository.
+* You have an AWS account,
+* You know your AWS access key and secret key,
+* You've created and setup a key-pair,
+* You've created an appropriate security group, and
+* You know the SSH (not HTTPS) URL for your git repository(s).
 
-  With the above in hand, to setup fabcloudkit to manage this scenario, you'll need to do the following:
+I'll get to what to do with this stuff in a minute, but assuming you've created a "context" configuration
+file and one "role" configuration file for the 'builder' role, here are a few things you could do:
 
-  1) Create a "setup.py" for your code (just like you're probably doing anyway),
-  2) Create a small fabcloudkit context configuration file,
-  2) Create a small fabcloudkit role configuration file for your single machine role.
+```
+>>> from fabcloudkit import Config, Context
+>>> Config.load()
+>>> context = Context('context.yaml')
+>>> builder = context.get_role('builder')
+>>> builder.create_instance()
+Instance:i-76b14906
+>>>
+```
 
-  Lets take a look at each one of these.
+All we did so far was load the default fabcloudkit configuration, load our "context" configuration file,
+get access to the Role object, and create an instance. Pretty easy, but no big deal.
 
+Now lets say that the 'builder' role-configuration file says that machines in the 'builder' role should
+have all of the AMI default packages updated, install Python2.7, pip, virtualenv, gcc, git, install the
+python-devel and mysql-devel packages, clone your git repo, and then reboot. You can do that:
 
-A slightly more complicated example
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+>>> inst, role = context.get_host_in_role('builder')
+>>> role.provision_instance(inst)
+Provisioning instance in role "builder":
+# (a whole bunch of fabric/SSH output)
+Provisioning completed successfully for role "builder".
+>>>
+```
 
-  At the moment, not much, but what little is there is sort of useful. Once an EC2 instance has been
-  launched and the public DNS name is available, the fabcloudkit makes it pretty easy to:
+A whole bunch of Fabric stuff will be spewed to the screen, but when it's done all of that provisioning
+will be finished and the instance will be ready to do a build. To build your code as described earlier
+is easy too:
 
-  a) Check if TOOL is installed, and install it if not, where TOOL is:
+```
+>>> role.build_instance(inst)
+Executing build for instance in role "builder":
+# (a whole bunch more fabric/SSH output)
+Build completed successfully for role "builder".
+>>>
+```
 
-     Python 2.7
-     pip
-     virtualenv
-     git
+## What's next?
 
-  b) Create a virtualenv in a specified location.
+In no particular order, here are some ideas on the burner:
 
-  c) Clone a git repo.
+- Unittests
+- Docs
+- Support pip installations from a local cache instead of downloading
+- Investigate using with Fabric's multi-processing capabilities
+- Support non-Python people
+- Support other WSGI servers
 
-     Currently, this is done by copying a private key file to "~/.ssh/id_rsa" (after checking if that
-     file already exists), and disabling ssh StrictHostKeyChecking for github.com so there are no
-     interactive prompts.
+## Caveats, acknowledgements, disclaimers and other stuff
 
-What's next?
-~~~~~~~~~~~~
+I really don't know anything about Django, so while the fabcloudkit might work with Django I
+haven't tested it.
 
-  In no particular order, here are some things on deck:
+The code has been tested mostly on the Amazon Linux AMI, but it's also been run on the Ubuntu
+AMI successfully several times. Won't work on Windows AMIs.
 
-  - Unit tests
-  - Limit pip installations from a local cache
-  - Investigate using with Fabric's multi-processing capabilities
+This is really my first experience setting up and using supervisor, Nginx, and gunicorn, so
+there are likely to be improvements that could/should be made.
 
-Caveats and other stuff
-~~~~~~~~~~~~~~~~~~~~~~~
+No docs at the moment (sorry), but there are some comments in the code.
 
-  I really don't know anything about Django, so while the fabcloudkit might work with Django I
-  haven't tested it.
+No use/testing with fabric's multi-processing capabilities.
 
-  The code has been tested mostly on the Amazon Linux AMI, but it's also been run on the Ubuntu
-  AMI successfully several times. Won't work on Windows AMIs.
+Only supports gunicorn HTTP-based binding (no socket-based binding).
 
-  This is really my first experience setting up and using supervisor, Nginx, and gunicorn, so
-  there are likely to be improvements that could/should be made.
+Comments and contributions welcome.
 
-  No docs at the moment (sorry), but there are some comments in the code.
-
-  No use/testing with fabric's multi-processing capabilities.
-
-  Only supports gunicorn HTTP-based binding (no socket-based binding).
-
-  Only used in straightforward EC2 deployments to date, e.g., no VPC, ELB, RDS, Dynamo, CloudFront, etc.
-
-  Comments and contributions welcome.
+Some ideas and code (heavily modified) taken from Brent Tubb's silk-deployment project at:
+http://pypi.python.org/pypi/silk-deployment/0.3.14
