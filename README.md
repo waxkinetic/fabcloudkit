@@ -16,7 +16,7 @@ In theory it should also be able to support non-Python projects, but it doesn't 
 
 The initial motivation for fabcloudkit was mostly cost and convenience: not wanting to invest in
 something like Chef or Puppet for managing small-ish projects, and at the same time wanting to
-automate machine provisioning, build and deployment of Python-based projects.
+automate machine provisioning, build and deployment of Python-based codebases.
 
 What does it do?
 ----------------
@@ -249,12 +249,15 @@ so they're a good resource to get a better understanding of the whole picture.
 
 ### Putting it all together
 
+So now that you have all of the above, what can you do with it? Assuming your context and role-
+configuration files are in the current directory:
+
 ```
 >>> from fabcloudkit import Config, Context
 >>> Config.load()
 >>> context = Context('context.yaml')
 >>> builder = context.get_role('builder')
->>> builder.create_instance()
+>>> inst = builder.create_instance()
 Instance:i-76b14906
 >>>
 ```
@@ -267,8 +270,7 @@ have all of the AMI default packages updated, install Python2.7, pip, virtualenv
 python-devel and mysql-devel packages, clone your git repo, and then reboot. You can do that:
 
 ```
->>> inst, role = context.get_host_in_role('builder')
->>> role.provision_instance(inst)
+>>> builder.provision_instance(inst)
 Provisioning instance in role "builder":
 # (a whole bunch of fabric/SSH output)
 Provisioning completed successfully for role "builder".
@@ -280,15 +282,101 @@ will be finished and the instance will be ready to do a build. To build your cod
 is easy too:
 
 ```
->>> role.build_instance(inst)
+>>> builder.build_instance(inst)
 Executing build for instance in role "builder":
 # (a whole bunch more fabric/SSH output)
 Build completed successfully for role "builder".
 >>>
 ```
 
-A note on git repositories
---------------------------
+Now we can create and provision an instance in the "web' role:
+
+```
+>>> web = ctx.get_role('web')
+>>> inst = web.create_instance()
+>>> web.provision_instance(inst)
+Provisioning instance in role "web":
+# (a whole bunch of fabric/SSH output)
+Provisioning completed successfully for role "web".
+>>>
+```
+
+Instances in the "web" role copy the build from the instance in the "builder" role, but the build
+command is the same:
+
+```
+>>> web.build_instance(inst)
+Executing build for instance in role "web":
+# (a whole bunch of fabric/SSH output)
+Build completed successfully for role "web".
+>>>
+```
+
+Finally, you can activate the build on the "web" instance:
+
+```
+>>> web.activate_instance(inst)
+Begin activation for instance in role: "web":
+# (a whole bunch of fabric/SSH output)
+Successfully activated build: "<build-name>"
+>>>
+```
+
+Build names are automatically incremented. They contain your context-name, an auto-incrementing
+build number, and the git commit ID of the most recent commit in your git repo. An example build
+name is "example_00001_bfda687".
+
+You can create, provision and build multiple instances this way. Lets say you did create multiple
+instances in the "web" role. Then you went away, did some development, then came back and wanted to
+update everything. It's easy:
+
+```
+>>> from fabcloudkit import Config, Context
+>>> Config.load()
+>>> context = Context('context.yaml')
+>>> context.aws_sync()
+>>>
+>>> inst, builder = context.get_host_in_role('builder')
+>>> builder.build_instance(inst)
+Executing build for instance in role "builder":
+# (fabric/SSH output)
+Build completed successfully for role "builder".
+>>>
+>>> hosts, web = context.all_hosts_in_role('web')
+>>> for inst in web_hosts:
+...     web.build_instance(inst)
+...
+#(fabric/SSH output)
+>>>
+>>> for inst in web_hosts:
+...     web.activate_instance(inst)
+...
+#(fabric/SSH output)
+>>>
+```
+
+Finally, if you want to take the site down:
+
+```
+>>> for inst in web_hosts:
+...   web.deactivate_instance(inst)
+...
+#(fabric/SSH output)
+>>>
+```
+
+Poof. It's gone. That's the bulk of the functionality in a nutshell. The main classes you'll use are
+Context and Role, but the underlying APIs are there too if you need them.
+
+A note on git repositories and deploy keys
+------------------------------------------
+
+The fabcloudkit supports access to git repositories using the
+"[machine user](https://help.github.com/articles/managing-deploy-keys)" approach. Using this you
+can deploy straight from git, which might make sense if you have a pure-Python code base or are
+comfortable having things like compilers on your public-facing machines. If not, then you can
+use fabcloudkit to restrict building just one machine (or a few machines), and copy the entirely
+built virtualenv to your public-facing machines and activate it there.
 
 
 What's next?
@@ -302,10 +390,13 @@ In no particular order, here are some ideas on the burner:
 - Investigate using with Fabric's multi-processing capabilities
 - Support non-Python people?
 - Support other WSGI servers?
+- Customization of the Nginx and supervisor configurations?
 
 
 Caveats, acknowledgements, disclaimers and other stuff
 ------------------------------------------------------
+
+Usage has been pretty light to date - this is experimental after all.
 
 I really don't know anything about Django, so while the fabcloudkit might work with Django I
 haven't tested it. You can, however, tell it to run "gunicorn_django" instead of "gunicorn".

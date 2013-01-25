@@ -58,6 +58,13 @@ class Context(dotdict):
                 return inst, self.get_role(role_name)
         raise RuntimeError('No instance in role "{0}" is available.'.format(role_name))
 
+    def all_hosts_in_role(self, role_name):
+        hosts = []
+        for inst in self._instances.itervalues():
+            if role_name == inst.tags.get(cfg().fck_role, None):
+                hosts.append(inst)
+        return hosts, self.get_role(role_name)
+
     def builds_root(self):
         return posixpath.join(cfg().deploy_root, self.name, cfg().builds_dir)
 
