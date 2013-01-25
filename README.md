@@ -2,6 +2,8 @@
 
                         cloud machine management; experimental
 
+(NOTE: this readme is a work in progress.)
+
 What is it?
 ~~~~~~~~~~~
 
