@@ -28,18 +28,20 @@ To do the above, fabcloudkit imposes a directory structure on your machines. The
 directories can be customized, but the structure stays the same. In brief, that structures looks
 something like this:
 
-> /opt/www
->   <name>
->       builds
->           <build-1>
->           <build-2>
->           ...
->           <build-N>
->       repos
->           <repo-1>
->           <repo-2>
->           ...
->           <repo-N>
+```
+/opt/www
+    <name>
+        builds
+        <build-1>
+        <build-2>
+        ...
+        <build-N>
+    repos
+        <repo-1>
+        <repo-2>
+        ...
+        <repo-N>
+```
 
 The root (/opt/www) can be customized, and so can the names "builds" and "repos" if you want. The
 actual build names are generated. Repo names are taken from the git URL, and you can override that
