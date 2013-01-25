@@ -1,0 +1,71 @@
+# the root directory for deploying project code.
+deploy_root: /opt/www
+
+# name of the directory under <deploy_root> that contains builds.
+builds_dir: builds
+
+# name of the directory under <deploy_root> that contains cloned repositories.
+repos_dir: repos
+
+# location for program/site-specific supervisor config files (the [program:x] section).
+supervisord_include_conf: /etc/supervisor/conf.d
+
+# location for site-specific nginx config files.
+nginx_include_conf: /etc/nginx/conf.d
+
+# name used for EC2 tag that contains the fabcloudkit role name of the instance.
+fck_role: fabcloudkit_role
+
+# name used for the EC2 tag that contains the name of the fabcloudkit last good build.
+fck_last_good_build: fabcloudkit_last_good_build
+
+# name used for the EC2 tag that contains the name of the active/installed fabcloudkit build.
+fck_active_build: fabcloudkit_active_build
+
+# name of the key files used for machine's provisioned with a private/public key pair.
+# note: public key will have ".pub" suffix.
+fck_machine_key: fck_machine
+
+# tools that can be installed by the "tool" module; add as desired.
+# ymmv: run tool.update_packages() first for best results. packages aren't available on all systems.
+#       e.g., there appears to be no package for Python 2.7 on Red Hat.
+tools:
+  __update_packages__:
+    check: None
+    yum: yum -y -d 1 -e 1 update
+    apt: apt-get -y -q update
+
+  nginx:
+    check: nginx -v
+    yum: yum -y -d 1 -e 1 install nginx
+    apt: apt-get -y -q install nginx
+
+  git:
+    check: git --version
+    yum: yum -y -d 1 -e 1 install git
+    apt: apt-get -y -q install git
+
+  gcc:
+    check: gcc -dumpversion
+    yum: yum -y -d 1 -e 1 install gcc
+    apt: apt-get -y -q install gcc
+
+  python2.7:
+    check: /usr/bin/python2.7 --version
+    yum: yum -y -d 1 -e 1 install python27
+    apt: apt-get -y -q install python2.7
+
+  mysql-devel:
+    check: None
+    yum: yum -y -d 1 -e 1 install mysql-devel
+    apt: apt-get -y -q install libmysqlclient-dev
+
+  python27-devel:
+    check: None
+    yum: yum -y -d 1 -e 1 install python27-devel
+    apt: apt-get -y -q install python2.7-dev
+
+  easy_install:
+    check: which easy_install
+    yum: yum -y -d 1 -e 1 install python-setuptools
+    apt: apt-get -y -q install python-setuptools
