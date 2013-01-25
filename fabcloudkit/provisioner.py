@@ -9,7 +9,7 @@ from fabric.operations import get, run, sudo
 
 # package
 from fabcloudkit import cfg, ctx
-import tool
+import fabcloudkit.tool as tool
 from .internal import *
 from .util import *
 

@@ -33,9 +33,9 @@ from fabric.context_managers import cd, prefix, settings
 from fabric.operations import run, sudo
 
 # package
-from .build import build_repo, BuildInfo
 from fabcloudkit import cfg, ctx
-from tool import git, virtualenv
+from fabcloudkit.tool import git, virtualenv
+from .build import build_repo, BuildInfo
 from .internal import *
 
 
@@ -79,7 +79,7 @@ class Builder(object):
 
         # run "setup.py install" in each repo.
         for repo in self._get_repos(plan.get('repos', [])):
-            build_repo(build_env_dir, repo.dir)
+            build_repo(build_env_dir, repo)
 
         # run tests.
         self._unittest(plan, build_name)

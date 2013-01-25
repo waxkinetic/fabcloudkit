@@ -9,7 +9,7 @@ from fabric.context_managers import prefix
 
 # package
 from fabcloudkit import ctx
-from tool import nginx, supervisord, virtualenv
+from fabcloudkit.tool import nginx, supervisord, virtualenv
 from .build import BuildInfo
 from .internal import *
 from .util import *

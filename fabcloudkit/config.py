@@ -32,6 +32,7 @@ from __future__ import absolute_import
 
 # standard
 import os
+from pkg_resources import resource_filename
 
 # pypi
 import yaml
@@ -67,7 +68,7 @@ class Config(dotdict):
     def load_file(self, path=None):
         if not self._loaded:
             if path is None:
-                path = os.path.join(os.getcwd(), 'fabcloudkit.yaml')
+                path = resource_filename(__name__, 'fabcloudkit.yaml')
             with open(path, 'r') as f:
                 self._set_dct(yaml.safe_load(f.read()))
         self._loaded = True

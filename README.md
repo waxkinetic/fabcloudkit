@@ -1,39 +1,71 @@
-                                // fabcloudkit //
+# fabcloudkit
+cloud machine management: provision, build, and deploy (experimental)
 
-                        cloud machine management; experimental
+## What is it?
 
-(NOTE: this readme is a work in progress.)
+The fabcloudkit is a thin layer over the Fabric remote execution and deployment tool and the boto
+AWS interface library. Its an experimental project for automated provisioning and management of
+machines in the AWS cloud for running Python code.
 
-What is it?
-~~~~~~~~~~~
+In theory fabcloudkit could support other cloud platforms, but is only focused on AWS at the moment.
+In theory it should also be able to support non-Python projects, but it doesn't right now.
 
-  The fabcloudkit is a thin layer over the Fabric remote execution and deployment tool and the boto
-  AWS interface library. Its an experimental project for automated provisioning and management of
-  machines in the AWS cloud.
+The initial motivation for fabcloudkit was mostly cost and convenience: not wanting to invest in
+something like Chef or Puppet for managing small-ish projects, and at the same time wanting to
+automate machine provisioning, build and deployment of Python-based projects.
 
-  In theory fabcloudkit could support other cloud platforms, but is only focused on AWS at the moment.
+## What does it do?
 
-  The initial motivation for fabcloudkit was mostly cost and convenience: not wanting to invest in
-  something like Chef or Puppet for managing small-ish projects, and at the same time wanting to
-  automate machine provisioning, build and deployment of Python-based projects.
+The fabcloudkit makes it relatively easy to
 
-What does it do?
-~~~~~~~~~~~~~~~~
+1. Create instances,
+2. Provision them with the software you need (including from your own git repositories),
+3. Build the code in your repos,
+4. Optionally distribute the built code to other instances, and
+5. Activate (or deploy) your code (using Nginx, gunicorn, and supervisor).
 
---REWRITE:
-  The fabcloudkit lets you easily declare machine "roles", examples might be a builder role for building
-  your code, and a web role for running the code. Then using these roles you can easily create and
-  provision instances, build, and deploy code.
---END REWRITE:
+To do the above, fabcloudkit imposes a directory structure on your machines. The names of the
+directories can be customized, but the structure stays the same. In brief, that structures looks
+something like this:
 
-  In doing the above fabcloudkit makes assumptions about directory structure on your instances (the
-  actual directory names used can be customized but the structure is the same).
+> /opt/www
+>   <name>
+>       builds
+>           <build-1>
+>           <build-2>
+>           ...
+>           <build-N>
+>       repos
+>           <repo-1>
+>           <repo-2>
+>           ...
+>           <repo-N>
 
-  Also, at the moment, fabcloudkit only supports a particular type of deployment configuration too: it
-  uses Nginx, gunicorn, and supervisor.
+The root (/opt/www) can be customized, and so can the names "builds" and "repos" if you want. The
+actual build names are generated. Repo names are taken from the git URL, and you can override that
+if you need something different.
 
-A simple example
-~~~~~~~~~~~~~~~~
+The fabcloudkit also imposes a particular kind of build and deployment. Right now, deployments use
+Nginx as the public-facing HTTP reverse-proxy server, gunicorn as the WSGI server, and supervisor
+for process monitoring and control.
+
+Builds require you to have a setup.py in your repo. A build includes the following:
+
+1. Pull new code from all of your git repos,
+2. Create a new virtualenv for the build,
+3. Use your setup.py to create an "sdist" distribution for each repo,
+4. Use pip to install each distribution into the virtualenv,
+5. Run unittests (not implemented yet),
+6. Build a tarball of the virtualenv, and
+7. Optionally executing a set of post-build commands.
+
+Once this is all done successfully, the tarball can be activated (that means installed, served
+and monitored using Nginx, gunicorn and supervisor. The tarball can be activated on the machine
+where it was built, or it can be copied to other machines and activated there.
+
+So, fabcloudkit does a reasonable amount of useful stuff. There's also a lot it doesn't do right now.
+
+## A simple example
 
   In this simple example there's just one type of machine, e.g., for a small and simple site that only
   needs web servers, or for a really small project that really only needs a single machine.

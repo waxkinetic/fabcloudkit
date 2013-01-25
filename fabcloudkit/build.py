@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 # standard
 import json
+import posixpath as path
 from StringIO import StringIO
 
 # pypi
@@ -11,8 +12,8 @@ from fabric.operations import get, run
 
 # package
 from fabcloudkit import cfg, ctx
-from tool import git
-from tool.virtualenv import activate_prefix
+from fabcloudkit.tool import git
+from fabcloudkit.tool.virtualenv import activate_prefix
 from .internal import *
 from .util import *
 
@@ -20,13 +21,26 @@ from .util import *
 __all__ = ['increment_name']
 
 
-def build_repo(build_env_dir, repo_name):
+def build_repo(build_env_dir, repo):
+    full_repo_dir = ctx().repo_path(repo.dir)
+    dist_dir = path.join(full_repo_dir, 'dist')
+
     # with the build virtualenv activated, and within the repo directory.
-    with prefix(activate_prefix(build_env_dir)), cd(ctx().repo_path(repo_name)):
-        start_msg('Running "python setup.py install" for repo "{0}"'.format(repo_name))
-        result = run('python setup.py install')
+    with prefix(activate_prefix(build_env_dir)), cd(full_repo_dir):
+        start_msg('Running "python setup.py install" for repo "{0}"'.format(repo.dir))
+
+        # first create a source distribution using setup.py in this repo.
+        result = run('python setup.py sdist --formats=gztar')
         if result.failed:
-            raise HaltError('Python setup failed in repo: "{0}"'.format(repo_name))
+            raise HaltError('"python setup.py sdist" failed in repo: "{0}"'.format(repo.dir))
+
+        # now use pip to install. couple of things to note:
+        # a) pip does a "flat" (not versioned) install, no eggs, and consistent package directory names.
+        # b) we're still allowing pip to grab packages from pypi; this should be fixed in a later version
+        #    where packages can (optionally) be picked up only from a local directory.
+        result = run('pip install --find-links=file://{dist_dir} {repo.package_name}'.format(**locals()))
+        if result.failed:
+            raise HaltError('"pip install" failed in repo: "{0}"'.format(repo.dir))
         succeed_msg('Build successful.')
 
 

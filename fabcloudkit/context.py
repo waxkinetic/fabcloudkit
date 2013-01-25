@@ -99,8 +99,11 @@ class Context(dotdict):
 
         # if no explicit dir or dir is None, extract it from the url.
         if not repo.get('dir', None):
-            url = repo['url']
-            repo['dir'] = url.rsplit('/', 1)[1].rsplit('.')[0]
+            repo.dir = repo.url.rsplit('/', 1)[1].rsplit('.')[0]
+
+        # if no explicit package_name is given, default to the dir.
+        if not repo.get('package_name', None):
+            repo.package_name = repo.dir
 
         return repo
 

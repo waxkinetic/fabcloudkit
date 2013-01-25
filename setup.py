@@ -20,6 +20,8 @@ def all_files_under(**kwargs):
                 for dirpath, _, filenames in walk(top)))
     return result
 
+# python setup.py sdist --formats=gztar
+# pip install --find-links=file:///Users/Rick/Stuff/fabcloudkit/dist fabcloudkit
 
 setup(
     name='fabcloudkit',
@@ -31,22 +33,13 @@ setup(
     packages=find_packages(),
 #    package_data=all_files_under(app=['static', 'templates']),
 
-    install_requires=[
-        'boto',
-        'fabric',
-        'pyaml'
+    setup_requires=[
+        'setuptools-git >= 1.0b1'
     ],
 
-    entry_points = {
-        'console_scripts': [
-            # runs unit tests in the correct virtualenv.
-            #'unittest=unittest:main',
-
-            # create the user database.
-            #'dj_create_user_db=persist.user_store:db_tool',
-
-            # create the song-queue/playlist database.
-            #'dj_create_song_queue=persist.song_queue:db_tool'
-        ]
-    }
+    install_requires=[
+        'boto >= 2.7.0',
+        'fabric >= 1.5.2',
+        'pyaml >= 13.01.0'
+    ]
 )
