@@ -29,13 +29,13 @@ class Role(dotdict):
         if path:
             self.load(path)
 
-    def activate_instance(self, inst):
+    def activate_instance(self, inst, force=False):
         # this seems to mitigate random SSH connection issues.
         disconnect_all()
 
         activator = Activator(self)
         with settings(host_string=inst.public_dns_name, user=self.user):
-            build_name, port = activator.execute()
+            build_name, port = activator.execute(force)
             if build_name is not None:
                 inst.add_tag(cfg().fck_active_build, '{build_name} ({port})'.format(**locals()))
 

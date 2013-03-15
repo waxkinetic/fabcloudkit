@@ -49,8 +49,38 @@ def build_repo(build_env_dir, repo):
         succeed_msg('Build successful.')
 
 
+class _Active(object):
+    @property
+    def name(self):
+        return self._key
+
+    @property
+    def build(self):
+        return self._dct.get('build', None)
+
+    @build.setter
+    def build(self, value):
+        self._dct['build'] = value
+
+    @property
+    def port(self):
+        return self._dct.get('port', 0)
+
+    @port.setter
+    def port(self, value):
+        self._dct['port'] = value
+
+    def __init__(self, key, dct):
+        self._key = key
+        self._dct = dct
+
+
 class BuildInfo(object):
     BUILD_INFO_FILE = 'build_info.txt'
+
+    @classmethod
+    def full_name(cls, build_name, name):
+        return None if build_name is None else '{build_name}_{name}'.format(**locals())
 
     @classmethod
     def get_last_good(cls, context_name=None):
@@ -74,22 +104,6 @@ class BuildInfo(object):
         self._dct['last'] = build_name
 
     @property
-    def active(self):
-        return self._dct['active']
-
-    @active.setter
-    def active(self, build_name):
-        self._dct['active'] = build_name
-
-    @property
-    def active_port(self):
-        return self._dct['active_port']
-
-    @active_port.setter
-    def active_port(self, port):
-        self._dct['active_port'] = int(port)
-
-    @property
     def number(self):
         return self._dct['number']
 
@@ -99,6 +113,9 @@ class BuildInfo(object):
 
     def __repr__(self):
         return 'context-name: "{0}"; {1}'.format(self._context_name, self._dct.__repr__())
+
+    def active(self, key):
+        return _Active(key, self._dct['active'].setdefault(key, {}))
 
     def load(self):
         if not self._info_exists():
@@ -140,9 +157,10 @@ class BuildInfo(object):
     def _default(self):
         # number: the mostly recently used build number (build may have failed).
         # last: name of the last known good build.
-        # active: name of the active build.
-        # active_port: number of the port the active build is running on.
-        return dict(number=0, last=None, active=None, active_port=0)
+        # active: a dict mapping kys to dicts, the target dict contains:
+        #         build: name of a build used for the key
+        #         port: name of the port used for the key
+        return dict(number=0, last=None, active={})
 
     def _build_name(self, number, commit):
         return '{self._context_name}_{number:0>5}_{commit}'.format(**locals())

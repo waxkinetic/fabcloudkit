@@ -8,6 +8,7 @@ from __future__ import absolute_import
 
 # standard
 import posixpath as path
+import re
 
 # pypi
 from fabric.api import env
@@ -82,6 +83,8 @@ EOF
 
 
 class Activator(object):
+    NAME_REGEX = r = re.compile('[^0-9a-zA-Z_-]+')
+
     def __init__(self, role):
         self._role = role
 
@@ -91,58 +94,70 @@ class Activator(object):
             return None, None
 
         start_msg('Begin activation for instance in role: "{0}":'.format(self._role.name))
+        name = self._get_name(spec)
         info = BuildInfo().load()
-        if not force and info.last == info.active and info.active is not None:
-            succeed_msg('The last know good build is already active.')
+        active = info.active(name)
+        if not force and info.last == active.build and active.build is not None:
+            succeed_msg('The last known good build is already active.')
             return None, None
 
         # the old build is what's currently active; last good build is being activated.
-        old_build_name = info.active
+        old_build_name = active.build
+        old_prog_name = info.full_name(active.build, active.name)
+
         new_build_name = info.last
+        new_prog_name = info.full_name(info.last, active.name)
         message('Last build: {0}; New build: {1}'.format(old_build_name, new_build_name))
 
         # start gunicorn and Nginx for the new build.
-        port = self._start_gunicorn(spec, new_build_name)
+        port = self._start_gunicorn(spec, new_build_name, new_prog_name)
         try:
-            self._nginx_switch(spec.get('nginx', {}), old_build_name, new_build_name, port)
+            self._nginx_switch(spec.get('nginx', {}), old_build_name, new_build_name, new_prog_name, port)
         except:
-            supervisord.stop_and_remove(new_build_name)
+            supervisord.stop_and_remove(new_prog_name)
             failed_msg('Activation failed for instance in role: "{0}"'.format(self._role.name))
             raise
 
         # delete the supervisor config for the old build, if any.
         if old_build_name:
-            supervisord.stop_and_remove(old_build_name)
+            supervisord.stop_and_remove(old_prog_name)
 
         # update the build information on this instance.
-        info.active = new_build_name
-        info.active_port = port
+        active.build = new_build_name
+        active.port = port
         info.save()
 
         succeed_msg('Successfully activated build: "{0}"'.format(new_build_name))
         return new_build_name, port
 
     def deactivate(self):
+        spec = self._role.get('activate', None)
+        name = self._get_name(spec)
         info = BuildInfo().load()
-        if not info.active:
+        active = info.active(name)
+        if not active.build:
             return
 
         start_msg('Deactivating instance in role: "{0}":'.format(self._role.name))
+        prog_name = info.full_name(active.build, active.name)
         try:
-            nginx.delete_server_config(info.active)
+            nginx.delete_server_config(prog_name)
             nginx.reload_config()
         except:
             failed_msg('Error stopping Nginx; ignoring.')
             pass
 
         try:
-            supervisord.stop_and_remove(info.active)
+            supervisord.stop_and_remove(prog_name)
         except:
             failed_msg('Error stopping supervisor; ignoring.')
             pass
+
+        active.build = None
+        info.save()
         succeed_msg('Finished deactivating instance in role: "{0}".'.format(self._role.name))
 
-    def _build_gunicorn_cmd(self, spec, build_name):
+    def _build_gunicorn_cmd(self, spec, build_name, prog_name):
         cmd = spec.get('script', 'gunicorn')
         app = spec.app_module
         cmd_path = path.join(ctx().build_path(build_name), 'bin')
@@ -155,7 +170,7 @@ class Activator(object):
         if 'workers' not in dct:
             dct['workers'] = (2 * cpu_count()) + 1
         if 'name' not in dct:
-            dct['name'] = build_name
+            dct['name'] = prog_name
 
         debug = dct.pop('debug', False)
         options = ' '.join(['--{0} {1}'.format(k,v) for k,v in dct.iteritems()])
@@ -169,19 +184,19 @@ class Activator(object):
     def _log_root(self, build_name):
         return path.join(ctx().build_path(build_name), 'logs')
 
-    def _start_gunicorn(self, spec, build_name):
+    def _start_gunicorn(self, spec, build_name, prog_name):
         # create the command and write a new supervisor config for this build.
         # (this creates a [program:<build_name>] config section for supervisor).
-        cmd, port = self._build_gunicorn_cmd(spec.get('gunicorn', {}), build_name)
+        cmd, port = self._build_gunicorn_cmd(spec.get('gunicorn', {}), build_name, prog_name)
         log_root = self._log_root(build_name)
-        supervisord.write_program_config(build_name, cmd, ctx().builds_root(), log_root)
+        supervisord.write_program_config(prog_name, cmd, ctx().builds_root(), log_root)
 
         # start it and wait until supervisor thinks its up and running, then test the
         # service by sending it the specified HTTP request.
-        supervisord.start(build_name)
-        if not supervisord.wait_until_running(build_name) or not self._http_test(spec, port):
+        supervisord.start(prog_name)
+        if not supervisord.wait_until_running(prog_name) or not self._http_test(spec, port):
             # cleanup and fail.
-            supervisord.stop_and_remove(build_name)
+            supervisord.stop_and_remove(prog_name)
             raise HaltError('Failed to start local server at: "{0}"'.format(self._gunicorn_bind(port)))
 
         message('Successfully started local server.')
@@ -211,6 +226,12 @@ class Activator(object):
         succeed_msg('"{url}" succeeded with status: "{status}"'.format(**locals()))
         return True
 
+    def _get_name(self, spec):
+        name = spec.get('name', None)
+        if name is None or self.NAME_REGEX.search(name):
+            raise HaltError('name not specified or invalid (only numbers, letters, underscore, dash)')
+        return name
+
     def _get_nginx_static(self, spec, build_name):
         static_spec = spec.get('static', None)
         if not static_spec:
@@ -224,19 +245,19 @@ class Activator(object):
         ])
         return static
 
-    def _nginx_switch(self, spec, old_build_name, new_build_name, new_port):
+    def _nginx_switch(self, spec, old_prog_name, new_build_name, new_prog_name, new_port):
         # write Nginx config for the new build.
         nginx.write_server_config(
-            name=new_build_name,
+            name=new_prog_name,
             server_names=spec.get('server_names', env.host_string),
             proxy_pass='http://{0}'.format(self._gunicorn_bind(new_port)),
             static_locations=self._get_nginx_static(spec, new_build_name),
-            log_root=self._log_root(new_build_name),
+            log_root=self._log_root(new_prog_name),
             listen=spec.get('listen', 80))
 
-        # delete Nginx config for the old build if it exists.
-        if old_build_name:
-            nginx.delete_server_config(old_build_name)
+        # delete Nginx config for the old program if it exists.
+        if old_prog_name:
+            nginx.delete_server_config(old_prog_name)
 
         # reload configuration.
         nginx.reload_config()
