@@ -119,6 +119,25 @@ def tool_install():
     succeed_msg('Successfully installed "Redis".')
 
 
+def tool_config(options):
+    # since we're using supervisord with redis, don't let redis daemonize. if it does
+    # supervisor views it as a premature exit and misbehaves.
+    options = options.copy()
+    options['daemonize'] = 'no'
+
+    _shutdown()
+    conf = '\n'.join(['{0} {1}'.format(k,v) for k,v in options.items()])
+    message('Writing "redis.conf" file:-----\n{conf}\n-----'.format(**locals()))
+    sudo('mkdir /etc/redis', quiet=True)
+    put_string(conf, _CONF_FILE, use_sudo=True)
+    _start()
+
+
+def tool_verify():
+    if not tool_check():
+        tool_install()
+
+
 def _is_running():
     # redis-server is running if the grep returns results.
     result = run('ps -A | grep redis-server', quiet=True)
@@ -156,20 +175,3 @@ def _start():
     supervisord.wait_until_running(_SUPERVISOR_NAME)
 
 
-def tool_config(options):
-    # since we're using supervisord with redis, don't let redis daemonize. if it does
-    # supervisor views it as a premature exit and misbehaves.
-    options = options.copy()
-    options['daemonize'] = 'no'
-
-    _shutdown()
-    conf = '\n'.join(['{0} {1}'.format(k,v) for k,v in options.items()])
-    message('Writing "redis.conf" file:-----\n{conf}\n-----'.format(**locals()))
-    sudo('mkdir /etc/redis', quiet=True)
-    put_string(conf, _CONF_FILE, use_sudo=True)
-    _start()
-
-
-def tool_verify():
-    if not tool_check():
-        tool_install()
