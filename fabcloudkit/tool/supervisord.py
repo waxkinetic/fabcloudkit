@@ -1,41 +1,41 @@
 """
     fabcloudkit
 
-Functions for managing supervisor.
+    Functions for managing supervisor.
 
-This module provides functions that check for installation, install, and manage an
-installation of, supervisor. If an installation already exists (e.g., as part of an
-AMI), the files directories used by that installation are (for now) assumed to conform
-to the same files and directories used by these functions.
+    This module provides functions that check for installation, install, and manage an
+    installation of, supervisor. If an installation already exists (e.g., as part of an
+    AMI), the files directories used by that installation are (for now) assumed to conform
+    to the same files and directories used by these functions.
 
-The relevant files and directories are:
+    The relevant files and directories are:
 
-/etc/init.d/supervisor:
-    The "init script" for supervisor that allows supervisord to be automatically run
-    automatically at system startup. Note that on some systems (e.g., Amazon Linux AMI)
-    that the existence of this file isn't sufficient to guarantee automatic launch
-    after boot, and use of the program chkconfig is required. The functions in this
-    module will use chkconfig where necessary, if it exists.
+    /etc/init.d/supervisor:
+        The "init script" for supervisor that allows supervisord to be automatically run
+        automatically at system startup. Note that on some systems (e.g., Amazon Linux AMI)
+        that the existence of this file isn't sufficient to guarantee automatic launch
+        after boot, and use of the program chkconfig is required. The functions in this
+        module will use chkconfig where necessary, if it exists.
 
-/etc/supervisord.conf:
-    The root or main supervisor configuration file. This file is read by supervisord
-    when it launches. This file contains an include directive that tells supervisord
-    to also load configurations from a different directory.
+    /etc/supervisord.conf:
+        The root or main supervisor configuration file. This file is read by supervisord
+        when it launches. This file contains an include directive that tells supervisord
+        to also load configurations from a different directory.
 
-/etc/supervisor/conf.d/:
-    The directory indicated by the include directive in the root supervisor configuration
-    file. Individual program configurations, the "[program:x]" section for that program,
-    are contained in files in this directory.
+    /etc/supervisor/conf.d/:
+        The directory indicated by the include directive in the root supervisor configuration
+        file. Individual program configurations, the "[program:x]" section for that program,
+        are contained in files in this directory.
 
-/etc/supervisor/conf.d/*.conf:
-    Individual program configuration files containing a program's "[program:x]" section.
+    /etc/supervisor/conf.d/*.conf:
+        Individual program configuration files containing a program's "[program:x]" section.
 
-<deploy_root>/<name>/logs/supervisor.log:
-    The supervisord log file for an individual program. This is the default location,
-    and it can overridden in the call to write_program_config().
+    <deploy_root>/<name>/logs/supervisor.log:
+        The supervisord log file for an individual program. This is the default location,
+        and it can overridden in the call to write_program_config().
 
-For more information on supervisor check out: http://supervisord.org/
-Idea and code (heavily modified) for this module taken from Brent Tubb's "silk" project.
+    For more information on supervisor check out: http://supervisord.org/
+    Idea and code (heavily modified) for this module taken from Brent Tubb's "silk" project.
 
     :copyright: (c) 2013 by Rick Bohrer.
     :license: BSD, see LICENSE for more details.
@@ -211,9 +211,9 @@ def reload_config():
     :return: None
     """
     start_msg('----- Telling supervisor to reread configuration:')
-    result = sudo('supervisorctl reread')
+    result = sudo('supervisorctl update')
     if result.failed or 'error' in result.lower():
-        raise HaltError('"supervisorctl reread" failed ({1}).'.format(result))
+        raise HaltError('"supervisorctl update" failed ({1}).'.format(result))
     succeed_msg('Successfully reloaded.')
 
 def start(name):

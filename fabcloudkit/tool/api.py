@@ -87,7 +87,8 @@ _special_map = {
     'pip':         'fabcloudkit.tool.pip',
     'virtualenv':  'fabcloudkit.tool.virtualenv',
     'supervisord': 'fabcloudkit.tool.supervisord',
-    'nginx':       'fabcloudkit.tool.nginx'
+    'nginx':       'fabcloudkit.tool.nginx',
+    'redis':       'fabcloudkit.tool.redis'
 }
 
 def _handle_special(name, check=True):

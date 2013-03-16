@@ -50,6 +50,11 @@ tools:
     yum: yum -y -d 1 -e 1 install gcc
     apt: apt-get -y -q install gcc
 
+  make:
+    check: make --version
+    yum: yum -y -d 1 -e 1 install make
+    apt: None
+
   python2.7:
     check: /usr/bin/python2.7 --version
     yum: yum -y -d 1 -e 1 install python27
