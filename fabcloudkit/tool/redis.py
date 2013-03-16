@@ -114,34 +114,9 @@ def tool_install():
     if result.return_code != 0:
         raise HaltError('Appeared to install Redis successfully but its not there...?')
 
-    # setup so the server launches on boot.
-    _config_server_restart()
-
     # delete source and build files.
     run('rm -rf {src_dir}'.format(**locals()))
     succeed_msg('Successfully installed "Redis".')
-
-def _config_server_restart():
-    message('Downloading and installing init script:')
-    result = run('wget https://raw.github.com/saxenap/install-redis-amazon-linux-centos/master/redis-server')
-    if result.return_code != 0:
-        raise HaltError('Unable to download Redis init script.')
-
-    if sudo('mv redis-server /etc/init.d/').return_code != 0 or\
-       sudo('chmod 755 /etc/init.d/redis-server').return_code != 0:
-        raise HaltError('Error installing Redis init script.')
-
-    result = run('which chkconfig')
-    if result.return_code != 0:
-        failed_msg('chckconfig not available; cannot configure boot startup.')
-    else:
-        result = sudo('chkconfig --add redis-server')
-        if result.failed:
-            raise HaltError('"chkconfig --add redis-server" failed.')
-
-        result = sudo('chkconfig --level 345 redis-server on')
-        if result.failed:
-            raise HaltError('"chkconfig redis-server on" failed.')
 
 
 def _is_running():
