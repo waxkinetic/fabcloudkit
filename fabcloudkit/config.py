@@ -71,7 +71,7 @@ class Config(dotdict):
     def load_file(self, path=None):
         if not self._loaded:
             if path is None:
-                path = resource_filename(__name__, 'fabcloudkit.yaml')
+                path = resource_filename(__name__, 'fabcloudkit.yaml.py')
             with open(path, 'r') as f:
                 self._set_dct(yaml.safe_load(f.read()))
         self._loaded = True

@@ -17,7 +17,10 @@ setup(
     long_description=readme,
 
     zip_safe=False,
-    include_package_data=True,
+    #include_package_data=True,
+    package_data = {
+        '': ['*.yaml']
+    },
 
     packages=find_packages(),
 
