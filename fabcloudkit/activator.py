@@ -249,7 +249,7 @@ class Activator(object):
         # write Nginx config for the new build.
         nginx.write_server_config(
             name=new_prog_name,
-            server_names=spec.get('server_names', env.host_string),
+            server_names=spec.get('server_names', '\"\"'),
             proxy_pass='http://{0}'.format(self._gunicorn_bind(new_port)),
             static_locations=self._get_nginx_static(spec, new_build_name),
             log_root=self._log_root(new_prog_name),

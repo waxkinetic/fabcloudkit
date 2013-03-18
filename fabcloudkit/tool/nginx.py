@@ -16,7 +16,7 @@ installation of, Nginx.
     it launches. The file contains an include directive that tells Nginx to
     load additional configurations from a different directory.
 
-    It's assumed this file is written by the package manager that installed Nginx.
+    Currently, this code writes a very basic nginx.conf file.
 
 /etc/nginx/conf.d/:
     The directory marked by the include directive in the nginx root configuration
@@ -65,6 +65,11 @@ def tool_install():
     result = run('test -f /etc/init.d/nginx')
     if result.failed:
         raise HaltError('Uh oh. Package manager did not install an Nginx init-script.')
+
+    # write nginx.conf file.
+    dest = path.join(cfg().nginx_conf, 'nginx.conf')
+    message('Writing "nginx.conf"')
+    put_string(_NGINX_CONF, dest, use_sudo=True)
 
     # the Amazon Linux AMI uses chkconfig; the init.d script won't do the job by itself.
     # set Nginx so it can be managed by chkconfig; and turn on boot startup.
@@ -157,4 +162,28 @@ server {{
     }}
     {static_locations}
 }}
+""".lstrip()
+
+_NGINX_CONF = """
+user  nginx;
+worker_processes  1;
+error_log  /var/log/nginx/error.log;
+pid        /var/run/nginx.pid;
+events {
+    worker_connections  1024;
+}
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+    sendfile        on;
+    keepalive_timeout  65;
+
+    include /etc/nginx/conf.d/*.conf;
+}
 """.lstrip()

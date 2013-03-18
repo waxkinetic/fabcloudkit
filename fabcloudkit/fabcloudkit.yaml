@@ -10,6 +10,9 @@ repos_dir: repos
 # location for program/site-specific supervisor config files (the [program:x] section).
 supervisord_include_conf: /etc/supervisor/conf.d
 
+# location for nginx config file.
+nginx_conf: /etc/nginx
+
 # location for site-specific nginx config files.
 nginx_include_conf: /etc/nginx/conf.d
 
