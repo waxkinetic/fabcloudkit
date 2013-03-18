@@ -112,7 +112,7 @@ class Activator(object):
         # start gunicorn and Nginx for the new build.
         port = self._start_gunicorn(spec, new_build_name, new_prog_name)
         try:
-            self._nginx_switch(spec.get('nginx', {}), old_build_name, new_build_name, new_prog_name, port)
+            self._nginx_switch(spec.get('nginx', {}), old_prog_name, new_build_name, new_prog_name, port)
         except:
             supervisord.stop_and_remove(new_prog_name)
             failed_msg('Activation failed for instance in role: "{0}"'.format(self._role.name))
