@@ -105,9 +105,12 @@ def tool_install():
         result = run('make')
         if result.return_code != 0:
             raise HaltError('Error occurred while building "Redis".')
-        result = sudo('make install')
-        if result.return_code != 0:
-            raise HaltError('Error occurred while installing "Redis".')
+
+    # note: can't use cd() context manager here along with sudo('make install');
+    # fabric implementation details cause "~" to be expanded as root.
+    result = run('cd {src_dir}/{base} && sudo make install'.format(**locals()))
+    if result.return_code != 0:
+        raise HaltError('Error occurred while installing "Redis".')
 
     # final verification.
     result = run('redis-server --version')
