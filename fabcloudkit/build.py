@@ -43,7 +43,7 @@ def build_repo(build_env_dir, repo):
         # a) pip does a "flat" (not versioned) install, no eggs, and consistent package directory names.
         # b) we're still allowing pip to grab packages from pypi; this should be fixed in a later version
         #    where packages can (optionally) be picked up only from a local directory.
-        result = run('pip install --find-links=file://{dist_dir} {repo.package_name}'.format(**locals()))
+        result = run('pip install --quiet --find-links=file://{dist_dir} {repo.package_name}'.format(**locals()))
         if result.failed:
             raise HaltError('"pip install" failed in repo: "{0}"'.format(repo.dir))
         succeed_msg('Build successful.')
