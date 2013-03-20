@@ -22,3 +22,12 @@ from .yaml_util import *
 from .config import *
 from .context import *
 from .role import *
+from .toolbase import *
+
+def load(self, path):
+    with open(path, 'r') as f:
+        self._set_dct(yaml.safe_load(f.read()))
+
+import fabcloudkit.activation_tools
+import fabcloudkit.build_tools
+import fabcloudkit.tool

@@ -7,6 +7,7 @@
 from __future__ import absolute_import
 
 # standard
+from contextlib import contextmanager
 import os
 import posixpath as path
 import random
@@ -15,6 +16,7 @@ import random
 from fabric.operations import run, put
 
 # package
+from fabcloudkit import cfg
 from .internal import *
 
 
@@ -42,3 +44,10 @@ def put_string(str, remote_path, *args, **kwargs):
     if result.failed:
         raise HaltError("Appeared to write file \"{0}\", but it's not there...?".format(remote_path))
     return result
+
+def copy_file_from(from_user, from_host, from_path, to_path):
+    result = run(
+        'scp -o StrictHostKeyChecking=no -i {key} {from_user}@{from_host}:{from_path} {to_path}'
+        .format(key=cfg().machine_key_file(), **locals()))
+    if result.failed:
+        raise HaltError('Unable to copy from {0}:{1}'.format(from_host, from_path))

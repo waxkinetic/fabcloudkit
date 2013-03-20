@@ -41,6 +41,9 @@ class dotdict(object):
     def __reversed__(self):
         return self._dct.__reversed__()
 
+    def copy(self):
+        return dotdict(self._dct.copy())
+
     def get(self, name, default=None):
         val = self._dct.get(name, default)
         return self._fixup(name, val)

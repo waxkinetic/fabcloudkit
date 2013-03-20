@@ -16,9 +16,9 @@ from fabric.context_managers import cd, prefix
 from fabric.operations import get, run
 
 # package
-from fabcloudkit import cfg, ctx
-from fabcloudkit.tool import git
-from fabcloudkit.tool.virtualenv import activate_prefix
+from fabcloudkit import ctx
+from fabcloudkit.tool import GitTool
+from fabcloudkit.tool.virtualenv import VirtualEnvTool
 from .internal import *
 from .util import *
 
@@ -31,7 +31,7 @@ def build_repo(build_env_dir, repo):
     dist_dir = path.join(full_repo_dir, 'dist')
 
     # with the build virtualenv activated, and within the repo directory.
-    with prefix(activate_prefix(build_env_dir)), cd(full_repo_dir):
+    with prefix(VirtualEnvTool.activate_prefix(build_env_dir)), cd(full_repo_dir):
         start_msg('Running "python setup.py install" for repo "{0}"'.format(repo.dir))
 
         # first create a source distribution using setup.py in this repo.
@@ -92,7 +92,7 @@ class BuildInfo(object):
 
     @classmethod
     def next(cls, ref_repo_name):
-        commit = git.head_commit(ref_repo_name)
+        commit = GitTool().head_commit(ref_repo_name)
         return BuildInfo().load().next_name(commit)
 
     @property

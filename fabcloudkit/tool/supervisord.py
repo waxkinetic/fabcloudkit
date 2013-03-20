@@ -51,265 +51,269 @@ from fabric.operations import run, sudo
 
 # package
 from fabcloudkit import cfg, put_string
-from fabcloudkit.internal import *
+from ..internal import *
+from ..toolbase import *
 
 
-__all__ = ['tool_check', 'tool_install', 'tool_verify',
-           'write_program_config', 'delete_program_config', 'reload_config',
-           'start', 'stop_and_remove', 'get_status', 'wait_until_running']
+class SupervisorTool(Tool):
+    def check(self, **kwargs):
+        """
+        Detects if supervisor is installed on the remote machine.
 
+        :return: None
+        """
+        start_msg('----- Checking for "supervisord" installation:')
+        result = run('supervisord --version')
+        if result.return_code != 0:
+            failed_msg('"supervisord" is not installed.')
+            return False
 
-def tool_check():
-    """
-    Detects if supervisor is installed on the remote machine.
-
-    :return: None
-    """
-    start_msg('----- Checking for "supervisord" installation:')
-    result = run('supervisord --version')
-    if result.return_code != 0:
-        failed_msg('"supervisord" is not installed.')
-        return False
-
-    succeed_msg('"supervisord" is installed ({0}).'.format(result))
-    return True
-
-def tool_install():
-    """
-    Installs and configures supervisor on the remote machine.
-
-    Supervisor is installed via easy_install, a supervisor.conf file is created with an entry
-    to include additional conf files in the directory: cfg().supervisord_include_conf. An init.d
-    script is written, and if the program "chkconfig" exists, supervisor is added.
-
-    :return: None
-    """
-    start_msg('----- Install "supervisord" via "easy_install".')
-    result = sudo('easy_install supervisor')
-    if result.return_code != 0:
-        HaltError('Failed to install "supervisord".')
-
-    result = run('which supervisord')
-    if result.return_code != 0:
-        raise HaltError('Confusion: just installed "supervisord" but its not there?')
-
-    message('Install successful; setting configuration.')
-
-    # create the root supervisord.conf with an [include] entry that allows loading additional
-    # from the folder: /etc/supervisor/conf.d/*.conf
-    # we use this location for site-specific config (e.g., a site's [program] section).
-    # start with the default conf file; the grep strips comment lines.
-    result = run('echo_supervisord_conf | grep "^;.*$" -v')
-    if result.failed:
-        raise HaltError('Unable to retrieve default supervisord configuration.')
-
-    # build the new configuration by just appending the include definition,
-    # then write it to: /etc/supervisord.conf
-    files = path.join(cfg().supervisord_include_conf, '*.conf')
-    new_conf = '{result}\n\n[include]\nfiles = {files}\n'.format(**locals())
-    put_string(new_conf, '/etc/supervisord.conf', use_sudo=True)
-
-    # make sure the directory exists.
-    result = sudo('mkdir -p {0}'.format(cfg().supervisord_include_conf))
-    if result.failed:
-        raise HaltError('Unable to create include dir: "{0}"'.format(cfg().supervisord_include_conf))
-
-    # finally write an init-script to /etc/init.d so supervisord gets run at startup.
-    # TODO: write system-dependent script using "uname -s": OSX=Darwin, Amazon Linux AMI=Linux, ??
-    put_string(_INIT_SCRIPT_LINUX, '/etc/init.d/supervisor', use_sudo=True, mode=00755)
-
-    # the Amazon Linux AMI uses chkconfig; the init.d script won't do the job by itself.
-    # set supervisord so it can be managed by chkconfig; and turn on boot startup.
-    # ubuntu (and Debian?) use UpStart or update-rc.d, so check them out.
-    result = run('which chkconfig')
-    if result.succeeded:
-        message('System has chkconfig; configuring.')
-        result = sudo('chkconfig --add supervisor')
-        if result.failed:
-            raise HaltError('"chkconfig --add supervisor" failed.')
-
-        result = sudo('chkconfig supervisor on')
-        if result.failed:
-            raise HaltError('"chkconfig supervisor on" failed.')
-
-    succeed_msg('"supervisord" is installed ({0}).'.format(result))
-
-def tool_verify():
-    """
-    Runs tool_check(), and if it returns False runs tool_install().
-
-    :return: None
-    """
-    if not tool_check():
-        tool_install()
-
-def write_program_config(name, cmd, dir=None, log_root=None, env=None):
-    """
-    Writes a supervisor [program] entry to a "conf" file.
-
-    The conf file is named "<name>.conf", and is located in the directory identified by:
-    cfg().supervisord_include_conf
-
-    Calling this function is typically followed soon after by a call to reload_config().
-
-    :param name: specifies the program name.
-    :param cmd: specifies the command to start the program.
-    :param dir: specifies the directory to chdir to before executing command. default: no chdir.
-    :param log_root: specifies the location for supervisor log file.
-                     default is 'logs' in the deployment root directory.
-    :param env: specifies the child process environment. default: None.
-    :return: None
-    """
-    start_msg('----- Writing supervisor conf file for "{0}":'.format(name))
-    if dir is None: dir = ''
-    if env is None: env = ''
-    if not log_root:
-        log_root = path.join(cfg().deploy_root, 'logs')
-
-    # first be sure the log directory exists. if not supervisor will fail to load the config.
-    result = sudo('mkdir -p {0}'.format(log_root))
-    if result.failed:
-        raise HaltError('Unable to create log directory: "{0}"'.format(log_root))
-
-    # now write the entry.
-    entry = (
-        "[program:{name}]\n"
-        "command={cmd}\n"
-        "directory={dir}\n"
-        "user=nobody\n"
-        "autostart=true\n"
-        "autorestart=true\n"
-        "stdout_logfile={log_root}/supervisord.log\n"
-        "redirect_stderr=True\n"
-        "environment={env}\n".format(**locals()))
-
-    dest = path.join(cfg().supervisord_include_conf, '{name}.conf'.format(**locals()))
-    message('Writing to file: "{0}"'.format(dest))
-    put_string(entry, dest, use_sudo=True)
-    succeed_msg('Wrote conf file for "{0}".'.format(name))
-
-def delete_program_config(name):
-    """
-    Deletes a program entry previously written by write_program_config().
-
-    :param name: specifies the program name used with write_program_config().
-    :return: None
-    """
-    start_msg('----- Removing supervisor program entry for "{0}":'.format(name))
-    dest = path.join(cfg().supervisord_include_conf, '{name}.conf'.format(**locals()))
-    result = sudo('rm -f {dest}'.format(**locals()))
-    if result.failed:
-        raise HaltError('Unable to remove entry.')
-    succeed_msg('Removed successfully.')
-
-def reload_config():
-    """
-    Tells supervisor to reload it's configuration. This method is normally used after writing
-    or deleting program entries to update the currently running supervisord.
-
-    :param name: identifies the program whose config should be activated. if none, no action is taken.
-    :return: None
-    """
-    start_msg('----- Telling supervisor to reread configuration:')
-    result = sudo('supervisorctl update')
-    if result.failed or 'error' in result.lower():
-        raise HaltError('"supervisorctl update" failed ({1}).'.format(result))
-    succeed_msg('Successfully reloaded.')
-
-def start(name):
-    """
-    Starts monitoring the specified program.
-
-    The write_program_config() function should have been called previously. This function will
-    cause supervisor to reread its configuration, then it will add the specified program to
-    the list of active programs.
-
-    :param name: identifies the program name (same as that used with write_program_config()).
-    :return: None
-    """
-    start_msg('----- Starting supervisord monitoring of "{0}":'.format(name))
-
-    # reload configuration so supervisord knows about the program, then start monitoring.
-    reload_config()
-    result = sudo('supervisorctl add {0}'.format(name))
-    if result.failed:
-        raise HaltError('Failed to add "{0}" to supervisor.'.format(name))
-    succeed_msg('Monitoring of "{0}" started.'.format(name))
-
-def stop_and_remove(name):
-    """
-    Stops monitoring the specified program.
-
-    Stops monitoring, removes the program from the list of active programs, removes the programs
-    config file using delete_program_config(), then causes supervisord to reread configuration.
-
-    :param name: identifies the progra name (same as that used with write_program_config()).
-    :return: None
-    """
-    start_msg('----- Stopping supervisord monitoring and removing program "{0}":'.format(name))
-
-    # tell supervisord to stop and remove the program.
-    result = sudo('supervisorctl stop {0}'.format(name))
-    if result.failed:
-        message('Ignoring "supervisorctl stop {0}" failure ({1})'.format(name, result))
-    result = sudo('supervisorctl remove {0}'.format(name))
-    if result.failed:
-        message('Ignoring "supervisorctl remove {0}" failure ({1})'.format(name, result))
-
-    # remove the program from configuration and reload.
-    delete_program_config(name)
-    reload_config()
-    succeed_msg('Stopped monitoring and removed program "{0}".'.format(name))
-
-def get_status(name):
-    """
-    Returns the supervisor status for the specified program.
-
-    :param name: name of the program (same as that used with write_program_config()).
-    :return: status string (e.g., 'RUNNING', 'FATAL')
-    """
-    result = sudo('supervisorctl status {0}'.format(name))
-    if result.failed:
-        raise HaltError('Unable to get status for "{0}".'.format(name))
-    return result.strip().split()[1]
-
-def wait_until_running(name, tries=3, wait=2):
-    """
-    Waits until the specific supervisor program has a running status or has failed.
-
-    :param name: name of the program (same as that used with write_program_config()).
-    :param tries: number of times to check status.
-    :param wait: initial wait time between status checks.
-
-    Given the name of a supervisord process, tell you whether it's running
-    or not.  If status is 'starting', will wait until status has settled.
-    # Status return from supervisorctl will look something like this::
-    # mysite_20110623_162319 RUNNING    pid 628, uptime 0:34:13
-    # mysite_20110623_231206 FATAL      Exited too quickly (process log may have details)
-    """
-    try:
-        status = get_status(name)
-    except HaltError:
-        status = 'EXCEPTION'
-
-    if status == 'RUNNING':
-        succeed_msg('Found "RUNNING" status for program "{0}".'.format(name))
+        succeed_msg('"supervisord" is installed ({0}).'.format(result))
         return True
-    elif status == 'FATAL':
-        failed_msg('Program seems to have failed.')
+
+    def install(self, **kwargs):
+        """
+        Installs and configures supervisor on the remote machine.
+
+        Supervisor is installed via easy_install, a supervisor.conf file is created with an entry
+        to include additional conf files in the directory: cfg().supervisord_include_conf. An init.d
+        script is written, and if the program "chkconfig" exists, supervisor is added.
+
+        :return: None
+        """
+        start_msg('----- Install "supervisord" via "easy_install".')
+        result = sudo('easy_install supervisor')
+        if result.return_code != 0:
+            HaltError('Failed to install "supervisord".')
+
+        result = run('which supervisord')
+        if result.return_code != 0:
+            raise HaltError('Confusion: just installed "supervisord" but its not there?')
+
+        message('Install successful; setting configuration.')
+
+        # create the root supervisord.conf with an [include] entry that allows loading additional
+        # from the folder: /etc/supervisor/conf.d/*.conf
+        # we use this location for site-specific config (e.g., a site's [program] section).
+        # start with the default conf file; the grep strips comment lines.
+        result = run('echo_supervisord_conf | grep "^;.*$" -v')
+        if result.failed:
+            raise HaltError('Unable to retrieve default supervisord configuration.')
+
+        # build the new configuration by just appending the include definition,
+        # then write it to: /etc/supervisord.conf
+        files = path.join(cfg().supervisord_include_conf, '*.conf')
+        new_conf = '{result}\n\n[include]\nfiles = {files}\n'.format(**locals())
+        put_string(new_conf, '/etc/supervisord.conf', use_sudo=True)
+
+        # make sure the directory exists.
+        result = sudo('mkdir -p {0}'.format(cfg().supervisord_include_conf))
+        if result.failed:
+            raise HaltError('Unable to create include dir: "{0}"'.format(cfg().supervisord_include_conf))
+
+        # finally write an init-script to /etc/init.d so supervisord gets run at startup.
+        # TODO: write system-dependent script using "uname -s": OSX=Darwin, Amazon Linux AMI=Linux, ??
+        put_string(_INIT_SCRIPT_LINUX, '/etc/init.d/supervisor', use_sudo=True, mode=00755)
+
+        # the Amazon Linux AMI uses chkconfig; the init.d script won't do the job by itself.
+        # set supervisord so it can be managed by chkconfig; and turn on boot startup.
+        # ubuntu (and Debian?) use UpStart or update-rc.d, so check them out.
+        result = run('which chkconfig')
+        if result.succeeded:
+            message('System has chkconfig; configuring.')
+            result = sudo('chkconfig --add supervisor')
+            if result.failed:
+                raise HaltError('"chkconfig --add supervisor" failed.')
+
+            result = sudo('chkconfig supervisor on')
+            if result.failed:
+                raise HaltError('"chkconfig supervisor on" failed.')
+
+        succeed_msg('"supervisord" is installed ({0}).'.format(result))
+        return self
+
+    def write_config(self, name, cmd, dir=None, log_root=None, env=None):
+        """
+        Writes a supervisor [program] entry to a "conf" file.
+
+        The conf file is named "<name>.conf", and is located in the directory identified by:
+        cfg().supervisord_include_conf
+
+        Calling this function is typically followed soon after by a call to reload_config().
+
+        :param name:
+            specifies the program name.
+
+        :param cmd:
+            specifies the command to start the program.
+
+        :param dir:
+            specifies the directory to chdir to before executing command. default: no chdir.
+
+        :param log_root:
+            specifies the location for supervisor log file.
+            default is 'logs' in the deployment root directory.
+
+        :param env:
+            specifies the child process environment. default: None.
+        """
+        start_msg('----- Writing supervisor conf file for "{0}":'.format(name))
+        if dir is None: dir = ''
+        if env is None: env = ''
+        if not log_root:
+            log_root = path.join(cfg().deploy_root, 'logs')
+
+        # first be sure the log directory exists. if not supervisor will fail to load the config.
+        result = sudo('mkdir -p {0}'.format(log_root))
+        if result.failed:
+            raise HaltError('Unable to create log directory: "{0}"'.format(log_root))
+
+        # now write the entry.
+        entry = (
+            "[program:{name}]\n"
+            "command={cmd}\n"
+            "directory={dir}\n"
+            "user=nobody\n"
+            "autostart=true\n"
+            "autorestart=true\n"
+            "stdout_logfile={log_root}/supervisord.log\n"
+            "redirect_stderr=True\n"
+            "environment={env}\n".format(**locals()))
+
+        dest = path.join(cfg().supervisord_include_conf, '{name}.conf'.format(**locals()))
+        message('Writing to file: "{0}"'.format(dest))
+        put_string(entry, dest, use_sudo=True)
+        succeed_msg('Wrote conf file for "{0}".'.format(name))
+        return self
+
+    def delete_config(self, name):
+        """
+        Deletes a program entry previously written by write_program_config().
+
+        :param name: specifies the program name used with write_program_config().
+        :return: None
+        """
+        start_msg('----- Removing supervisor program entry for "{0}":'.format(name))
+        dest = path.join(cfg().supervisord_include_conf, '{name}.conf'.format(**locals()))
+        result = sudo('rm -f {dest}'.format(**locals()))
+        if result.failed:
+            raise HaltError('Unable to remove entry.')
+        succeed_msg('Removed successfully.')
+        return self
+
+    def reload(self):
+        """
+        Tells supervisor to reload it's configuration. This method is normally used after writing
+        or deleting program entries to update the currently running supervisord.
+
+        :param name: identifies the program whose config should be activated. if none, no action is taken.
+        :return: None
+        """
+        start_msg('----- Telling supervisor to reread configuration:')
+        result = sudo('supervisorctl update')
+        if result.failed or 'error' in result.lower():
+            raise HaltError('"supervisorctl update" failed ({1}).'.format(result))
+        succeed_msg('Successfully reloaded.')
+        return self
+
+    def start(self, name):
+        """
+        Starts monitoring the specified program.
+
+        The write_program_config() function should have been called previously. This function will
+        cause supervisor to reread its configuration, then it will add the specified program to
+        the list of active programs.
+
+        :param name: identifies the program name (same as that used with write_program_config()).
+        :return: None
+        """
+        start_msg('----- Starting supervisord monitoring of "{0}":'.format(name))
+
+        # reload configuration so supervisord knows about the program, then start monitoring.
+        self.reload()
+        result = sudo('supervisorctl add {0}'.format(name))
+        if result.failed:
+            raise HaltError('Failed to add "{0}" to supervisor.'.format(name))
+        succeed_msg('Monitoring of "{0}" started.'.format(name))
+        return self
+
+    def stop_and_remove(self, name):
+        """
+        Stops monitoring the specified program.
+
+        Stops monitoring, removes the program from the list of active programs, removes the programs
+        config file using delete_program_config(), then causes supervisord to reread configuration.
+
+        :param name: identifies the progra name (same as that used with write_program_config()).
+        :return: None
+        """
+        start_msg('----- Stopping supervisord monitoring and removing program "{0}":'.format(name))
+
+        # tell supervisord to stop and remove the program.
+        result = sudo('supervisorctl stop {0}'.format(name))
+        if result.failed:
+            message('Ignoring "supervisorctl stop {0}" failure ({1})'.format(name, result))
+        result = sudo('supervisorctl remove {0}'.format(name))
+        if result.failed:
+            message('Ignoring "supervisorctl remove {0}" failure ({1})'.format(name, result))
+
+        # remove the program from configuration and reload.
+        self.delete_config(name).reload()
+        succeed_msg('Stopped monitoring and removed program "{0}".'.format(name))
+        return self
+
+    def get_status(self, name):
+        """
+        Returns the supervisor status for the specified program.
+
+        :param name: name of the program (same as that used with write_program_config()).
+        :return: status string (e.g., 'RUNNING', 'FATAL')
+        """
+        result = sudo('supervisorctl status {0}'.format(name))
+        if result.failed:
+            raise HaltError('Unable to get status for "{0}".'.format(name))
+        return result.strip().split()[1]
+
+    def wait_until_running(self, name, tries=3, wait=2):
+        """
+        Waits until the specific supervisor program has a running status or has failed.
+
+        :param name: name of the program (same as that used with write_program_config()).
+        :param tries: number of times to check status.
+        :param wait: initial wait time between status checks.
+
+        Given the name of a supervisord process, tell you whether it's running
+        or not.  If status is 'starting', will wait until status has settled.
+        # Status return from supervisorctl will look something like this::
+        # mysite_20110623_162319 RUNNING    pid 628, uptime 0:34:13
+        # mysite_20110623_231206 FATAL      Exited too quickly (process log may have details)
+        """
+        try:
+            status = self.get_status(name)
+        except HaltError:
+            status = 'EXCEPTION'
+
+        if status == 'RUNNING':
+            succeed_msg('Found "RUNNING" status for program "{0}".'.format(name))
+            return True
+        elif status == 'FATAL':
+            failed_msg('Program seems to have failed.')
+            return False
+        elif status == 'EXCEPTION':
+            failed_msg('Unable to get program status; assuming it failed.')
+            return False
+
+        if tries > 0:
+            message('Status({name})="{status}", waiting: tries={tries}, wait={wait}.'.format(**locals()))
+            time.sleep(wait)
+            return self.wait_until_running(name, tries-1, wait*2)
+
+        failed_msg('Did not see a "RUNNING" status for program "{0}"; assuming it failed.'.format(name))
         return False
-    elif status == 'EXCEPTION':
-        failed_msg('Unable to get program status; assuming it failed.')
-        return False
 
-    if tries > 0:
-        message('Status({name})="{status}", waiting: tries={tries}, wait={wait}.'.format(**locals()))
-        time.sleep(wait)
-        return wait_until_running(name, tries-1, wait*2)
 
-    failed_msg('Did not see a "RUNNING" status for program "{0}"; assuming it failed.'.format(name))
-    return False
-
+# register.
+Tool.__tools__['supervisord'] = SupervisorTool
 
 _INIT_SCRIPT_LINUX = """
 #!/bin/sh

@@ -34,7 +34,7 @@ fck_machine_key: fck_machine
 #       e.g., there appears to be no package for Python 2.7 on Red Hat.
 tools:
   __update_packages__:
-    check: None
+    check:
     yum: yum -y -d 1 -e 1 update
     apt: apt-get -y -q update
 
@@ -56,7 +56,7 @@ tools:
   make:
     check: make --version
     yum: yum -y -d 1 -e 1 install make
-    apt: None
+    apt:
 
   python2.7:
     check: /usr/bin/python2.7 --version
@@ -64,17 +64,17 @@ tools:
     apt: apt-get -y -q install python2.7
 
   mysql:
-    check: None
+    check:
     yum: yum -y -d 1 -e 1 install mysql
     apt: apt-get -y -q install mysql-server
 
   mysql-devel:
-    check: None
+    check:
     yum: yum -y -d 1 -e 1 install mysql-devel
     apt: apt-get -y -q install libmysqlclient-dev
 
   python27-devel:
-    check: None
+    check:
     yum: yum -y -d 1 -e 1 install python27-devel
     apt: apt-get -y -q install python2.7-dev
 
