@@ -38,11 +38,12 @@ class Tool(object):
         :return: the result of calling the named command on the tool.
         """
         if dct is None:
-            dct = {}
+            dct = dict()
         tool = cls.create(tool_name)
         cmd_name = dct.get('command', 'install')
         dc = dct.copy()
-        del dc['command']
+        if 'command' in dc:
+            del dc['command']
         return tool.command(cmd_name, **dc)
 
     def check(self, **kwargs):
