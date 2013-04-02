@@ -212,7 +212,7 @@ class SupervisorTool(Tool):
         start_msg('----- Telling supervisor to reread configuration:')
         result = sudo('supervisorctl update')
         if result.failed or 'error' in result.lower():
-            raise HaltError('"supervisorctl update" failed ({1}).'.format(result))
+            raise HaltError('"supervisorctl update" failed ({0}).'.format(result))
         succeed_msg('Successfully reloaded.')
         return self
 
