@@ -37,6 +37,8 @@ class Tool(object):
         :param dct: the standard/compliant tool definition.
         :return: the result of calling the named command on the tool.
         """
+        if dct is None:
+            dct = {}
         tool = cls.create(tool_name)
         cmd_name = dct.get('command', 'install')
         dc = dct.copy()
