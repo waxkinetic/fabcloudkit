@@ -176,7 +176,7 @@ class SupervisorTool(Tool):
             "user=nobody\n"
             "autostart=true\n"
             "autorestart=true\n"
-            "stdout_logfile={log_root}/supervisord.log\n"
+            "stdout_logfile={log_root}/{name}.log\n"
             "redirect_stderr=True\n"
             "environment={env}\n".format(**locals()))
 
