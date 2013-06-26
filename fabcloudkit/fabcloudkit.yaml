@@ -58,6 +58,11 @@ tools:
     yum: yum -y -d 1 -e 1 install libjpeg
     apt: apt-get -y -q install libjpeg
 
+  libjpeg_devel:
+    check:
+    yum: yum -y -d 1 -e 1 install libjpeg-devel
+    apt: apt-get -y -q install libjpeg-dev
+
   make:
     check: make --version
     yum: yum -y -d 1 -e 1 install make
