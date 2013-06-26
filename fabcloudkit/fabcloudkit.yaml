@@ -38,30 +38,30 @@ tools:
     yum: yum -y -d 1 -e 1 update
     apt: apt-get -y -q update
 
-  nginx:
-    check: nginx -v
-    yum: yum -y -d 1 -e 1 install nginx
-    apt: apt-get -y -q install nginx
-
-  git:
-    check: git --version
-    yum: yum -y -d 1 -e 1 install git
-    apt: apt-get -y -q install git
+  easy_install:
+    check: which easy_install
+    yum: yum -y -d 1 -e 1 install python-setuptools
+    apt: apt-get -y -q install python-setuptools
 
   gcc:
     check: gcc -dumpversion
     yum: yum -y -d 1 -e 1 install gcc
     apt: apt-get -y -q install gcc
 
+  git:
+    check: git --version
+    yum: yum -y -d 1 -e 1 install git
+    apt: apt-get -y -q install git
+
+  libjpeg:
+    check:
+    yum: yum -y -d 1 -e 1 install libjpeg
+    apt: apt-get -y -q install libjpeg
+
   make:
     check: make --version
     yum: yum -y -d 1 -e 1 install make
     apt:
-
-  python2.7:
-    check: /usr/bin/python2.7 --version
-    yum: yum -y -d 1 -e 1 install python27
-    apt: apt-get -y -q install python2.7
 
   mysql:
     check:
@@ -73,12 +73,18 @@ tools:
     yum: yum -y -d 1 -e 1 install mysql-devel
     apt: apt-get -y -q install libmysqlclient-dev
 
+  nginx:
+    check: nginx -v
+    yum: yum -y -d 1 -e 1 install nginx
+    apt: apt-get -y -q install nginx
+
+  python2.7:
+    check: /usr/bin/python2.7 --version
+    yum: yum -y -d 1 -e 1 install python27
+    apt: apt-get -y -q install python2.7
+
   python27-devel:
     check:
     yum: yum -y -d 1 -e 1 install python27-devel
     apt: apt-get -y -q install python2.7-dev
 
-  easy_install:
-    check: which easy_install
-    yum: yum -y -d 1 -e 1 install python-setuptools
-    apt: apt-get -y -q install python-setuptools
