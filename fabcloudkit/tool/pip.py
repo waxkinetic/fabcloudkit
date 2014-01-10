@@ -42,6 +42,12 @@ class PipTool(Tool):
         result = sudo('easy_install pip')
         if result.return_code != 0:
             raise HaltError('Failed to install "pip".')
+
+        message('upgrading setuptools for pip/wheels support.')
+        result = sudo('pip install -q --upgrade --no-use-wheel setuptools')
+        if result.return_code != 0:
+            raise HaltError('Failed to upgrade "setuptools" for pip/wheels support.')
+
         succeed_msg('Successfully installed "pip".')
         return self
 
