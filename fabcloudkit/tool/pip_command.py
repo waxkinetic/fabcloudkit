@@ -29,7 +29,7 @@ class PipCommandTool(Tool):
             HaltError('"pip" is not installed; it must be installed before using pip_command.')
             return False
 
-        cmd_text = kwargs.get('command', None)
+        cmd_text = kwargs.get('text', None)
         if not cmd_text:
             failed_msg('no pip command specified; skipping.')
         else:
