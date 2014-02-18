@@ -11,6 +11,7 @@ from .gunicorn import *
 from .keys import *
 from .nginx import *
 from .pip import *
+from .pip_command import *
 from .python import *
 from .redis import *
 from .supervisord import *
