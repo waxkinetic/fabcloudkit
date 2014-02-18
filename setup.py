@@ -6,7 +6,7 @@ readme = open('README.md').read()
 
 setup(
     name='fabcloudkit',
-    version='0.021',
+    version='0.022',
     url='http://github.com/waxkinetic/fabcloudkit',
     license='BSD',
 
