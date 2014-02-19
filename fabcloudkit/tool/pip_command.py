@@ -33,7 +33,7 @@ class PipCommandTool(Tool):
         if not cmd_text:
             failed_msg('no pip command specified; skipping.')
         else:
-            cmd_text = sudo('pip {0}'.format(cmd_text))
+            cmd_text = 'pip {0}'.format(cmd_text)
             message('executing pip command: "{0}".'.format(cmd_text))
             result = sudo(cmd_text)
             if result.return_code != 0:
